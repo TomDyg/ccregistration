@@ -1,0 +1,4 @@
+services:
+    tom_dyg_gus.gus_web_service:
+        class: TomDyg\GusBundle\Service\GusWebService
+        arguments: []

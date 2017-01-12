@@ -1,0 +1,7 @@
+tom_dyg_gus:
+    resource: "@TomDygGusBundle/Resources/config/routing.yml"
+    prefix:   /
+
+app:
+    resource: "@AppBundle/Controller/"
+    type:     annotation
