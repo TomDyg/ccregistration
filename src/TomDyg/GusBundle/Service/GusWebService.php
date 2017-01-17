@@ -11,28 +11,14 @@ use GusApi\ReportTypes;
 
 class GusWebService {
 
-    public function __construct() {
-        //die('ok');
-    }
+    protected $key;
+    protected $gus;
 
-    public function test() {
-
-        return ['result' => 1];
-    }
-
-    public function connect() {
-
-        // $client = new \nusoap_client('https://wyszukiwarkaregontest.stat.gov.pl/wsBIR/wsdl/UslugaBIRzewnPubl.xsd', true);
-        // dump($client->call('Zaloguj', ['pKluczUzytkownika'=>'abcde12345abcde12345']));
-        // dump($client); 
-        // $client = new \SoapClient('http://example.com/url/to/some/valid.wsdl', [], true);
-//$response = $client->call('someSOAPMethodee', array('param1'=>'foo', 'param2'=>'bar'));
-        // dump($client);
-        //$response = $client->call('someSOAPMethod', array('param1'=>'foo', 'param2'=>'bar'));
-        //return ['result' => 1];
-
-        $gus = new GusApi(
-                'abcde12345abcde12345', // <--- your user key / twój klucz użytkownika
+    public function __construct($key) {
+       $this->key = $key;
+       
+       $this->gus = new GusApi(
+                $this->key, // <--- your user key / twój klucz użytkownika
                 new \GusApi\Adapter\Soap\SoapAdapter(
                 RegonConstantsInterface::BASE_WSDL_URL, RegonConstantsInterface::BASE_WSDL_ADDRESS_TEST //<--- production server / serwer produkcyjny
                 //for test serwer use RegonConstantsInterface::BASE_WSDL_ADDRESS_TEST
@@ -40,65 +26,63 @@ class GusWebService {
                 )
         );
 
+       
+    }
+
+    public function login() {
+
+        
+        $this->checkServiceStatus();
+
+        return $sid = $this->gus->login();
+    }
+
+    public function checkServiceStatus() {
+
+        if ($this->gus->serviceStatus() === RegonConstantsInterface::SERVICE_AVAILABLE) {
+            
+        } else if ($this->gus->serviceStatus() === RegonConstantsInterface::SERVICE_UNAVAILABLE) {
+
+            throw new \Exception('Server is unavailable now. Please try again later For more information read server message belowe: ' . $this->gus->serviceMessage());
+        } else {
+
+            throw new \Exception('Server technical break. Please try again later. For more information read server message belowe: ' . $this->gus->serviceMessage());
+        }
+    }
+
+    public function getFullReport($nip) {
+
+      
+        $sid = $this->login();
+
         try {
-            $gus->login();
-        } catch (InvalidUserKeyException $e) {
-            echo 'Bad user key';
-        }
+            $gusReport = $this->gus->getByNip($sid, $nip);
+           
+           if (!empty($gusReport)) { 
+            
+            return $this->gus->getFullReport(
+                           $sid, $gusReport[0], ReportTypes::REPORT_PUBLIC_LAW
+            );
+            
+           } else {
+              // throw new \Exception('emptyyyyyyy');
+               return false;
+           }
+
+        } catch (\GusApi\Exception\NotFoundException $e) {
+            return false;
+        } 
+        catch (\GusApi\Adapter\Soap\Exception\NoDataException $e) {
+           
+            return $this->gus->getFullReport(
+                           $sid, $gusReport[0], ReportTypes::REPORT_LOCALS_PHYSIC_PUBLIC
+            );
         
-        $_POST['nip'] = '8831713942';
-        
-        if ($gus->serviceStatus() === RegonConstantsInterface::SERVICE_AVAILABLE) {
-
-    try {
-
-        if (!isset($_SESSION['sid']) || !$gus->isLogged($_SESSION['sid'])) {
-            $_SESSION['sid'] = $gus->login();
         }
-
-        //printNipForm();
-
-        if (isset($_POST['nip'])) {
-
-            $nip = $_POST['nip'];
-            try {
-                $gusReport = $gus->getByNip($_SESSION['sid'], $nip);
-                var_dump($gusReport);
-                var_dump(
-                    $gus->getFullReport(
-                        $_SESSION['sid'],
-                        $gusReport[0],
-                        ReportTypes::REPORT_ACTIVITY_LAW_PUBLIC
-                    )
-                );
-                echo $gusReport[0]->getName();
-
-            } catch (\GusApi\Exception\NotFoundException $e) {
-                echo 'No data found <br>';
-                echo 'For more information read server message belowe: <br>';
-                echo $gus->getResultSearchMessage($_SESSION['sid']);
-
-            }
-        }
-
-    } catch (InvalidUserKeyException $e) {
-        echo 'Bad user key!';
     }
-
-} else if ($gus->serviceStatus() === RegonConstantsInterface::SERVICE_UNAVAILABLE) {
-
-    echo 'Server is unavailable now. Please try again later <br>';
-    echo 'For more information read server message belowe: <br>';
-    echo $gus->serviceMessage();
-
-} else {
-
-    echo 'Server technical break. Please try again later <br>';
-    echo 'For more information read server message belowe: <br>';
-    echo $gus->serviceMessage();
-
-}
-        
-    }
+    
+    
+    
+    
 
 }
